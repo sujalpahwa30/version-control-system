@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const GitObject = require('../objects/GitObject');
 
 class Repository {
     constructor(rootPath) {
@@ -27,6 +28,33 @@ class Repository {
 
         console.log(`Initialized empty repository in ${this.gitDir}`);
         return true; 
+    }
+
+    storeObject(obj) {
+        const hash = obj.hash();
+        const dir = path.join(this.vcsDir, 'objects', hash.slice(0, 2));
+        const file = path.join(dir, hash.slice(2));
+
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+
+        if (!fs.existsSync(file)) {
+            fs.writeFileSync(file, obj.serialize());
+        }
+        return hash; 
+    }
+
+    loadObject(hash) {
+        const dir = path.join(this.vcsDir, 'objects', hash.slice(0, 2));
+        const file = path.join(dir, hash.slice(2));
+
+        if (!fs.existsSync(file)) {
+            throw new Error(`Object ${hash} not found`);
+        }
+
+        const data = fs.readFileSync(file);
+        return GitObject.deserialize(data);
     }
 }
 
