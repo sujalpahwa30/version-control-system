@@ -76,6 +76,10 @@ class Repository {
     }
 
     addPath(targetPath) {
+        if (targetPath === '.') {
+            this.addDirectory('');
+            return; 
+        }
         const fullPath = path.join(this.rootPath, targetPath);
 
         if (!fs.existsSync(fullPath)) {
