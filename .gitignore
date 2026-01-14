@@ -1,3 +1,4 @@
 node_modules/
 .orion/
 tests/tmp-repo/ 
+demo/ 
