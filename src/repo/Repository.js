@@ -3,6 +3,7 @@ const path = require('path');
 const GitObject = require('../objects/GitObject');
 const Index = require('../index/Index');
 const Blob = require('../objects/Blob');
+const Tree = require('../objects/Tree');
 
 class Repository {
     constructor(rootPath) {
@@ -116,6 +117,54 @@ class Repository {
             }
         };
         walk(fullDirPath);
+    }
+
+    buildTreeFromIndex() {
+        const indexEntries = this.index.getEntries();
+
+        if (Object.keys(indexEntries).length === 0) {
+            const emptyTree = new Tree([]);
+            return this.storeObject(emptyTree);
+        }
+
+        const root = {};
+
+        for (const [filePath, hash] of Object.entries(indexEntries)) {
+            const parts = filePath.split('/');
+            let current = root;
+
+            for (let i = 0; i < parts.length - 1; i++) {
+                if (!current[parts[i]]) {
+                    current[parts[i]] = {};
+                }
+                current = current[parts[i]];
+            }
+            current[parts[parts.length - 1]] = hash;
+        }
+
+        const writeTreeRecursive = (node) => {
+            const entries = [];
+
+            for (const [name, value] of Object.entries(node)) {
+                if (typeof value === 'string') {
+                    entries.push({
+                        mode: '100644',
+                        name,
+                        hash: value 
+                    });
+                } else {
+                    const subtreeHash = writeTreeRecursive(value);
+                    entries.push({
+                        mode: '40000',
+                        name,
+                        hash: subtreeHash
+                    });
+                }
+            }
+            const tree = new Tree(entries);
+            return this.storeObject(tree);
+        };
+        return writeTreeRecursive(root);
     }
 }
 
