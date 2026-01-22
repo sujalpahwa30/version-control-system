@@ -5,6 +5,7 @@ const Index = require('../index/Index');
 const Blob = require('../objects/Blob');
 const Tree = require('../objects/Tree');
 const Commit = require('../objects/Commit');
+const color = require('../utils/color'); 
 
 class Repository {
     constructor(rootPath) {
@@ -239,8 +240,8 @@ class Repository {
         while (current && count < limit) {
             const commit = this.loadCommit(current);
 
-            console.log(`commit ${current}`);
-            console.log(`Author: ${commit.author}`);
+            console.log(color.yellow(`commit ${current}`));
+            console.log(color.cyan(`Author: ${commit.author}`));
             console.log('');
             console.log(`    ${commit.message}`);
             console.log('');
@@ -248,6 +249,112 @@ class Repository {
             current = commit.parents[0];
             count++; 
         }
+    }
+
+    restoreTree(treeHash, targetPath) {
+        const treeObj = this.loadObject(treeHash);
+        const Tree = require('../objects/Tree');
+        const tree = Tree.deserialize(treeObj.content);
+
+        for (const entry of tree.entries) {
+            const fullPath = require('path').join(targetPath, entry.name);
+
+            if (entry.mode === '100644') {
+                // blob -> file
+                const blobObj = this.loadObject(entry.hash);
+                const content = blobObj.content;
+                require('fs').writeFileSync(fullPath, content); 
+            } else if (entry.mode === '40000') {
+                // tree -> directory 
+                require('fs').mkdirSync(fullPath, { recursive: true });
+                this.restoreTree(entry.hash, fullPath);
+            }
+        }
+    }
+
+    getFilesFromTree(treeHash, base = '') {
+        const files = [];
+        const Tree = require('../objects/Tree');
+        const treeObj = this.loadObject(treeHash);
+        const tree = Tree.deserialize(treeObj.content);
+
+        for (const entry of tree.entries) {
+            const fullPath = base 
+                ? `${base}/${entry.name}`
+                : entry.name;
+
+            if (entry.mode === '100644') {
+                files.push(fullPath);
+            } else {
+                files.push(
+                    ...this.getFilesFromTree(entry.hash, fullPath)
+                );
+            }
+        }
+        return files; 
+    }
+
+    clearTrackedFiles(treeHash) {
+        const files = this.getFilesFromTree(treeHash);
+
+        for (const file of files) {
+            const fullPath = require('path').join(this.rootPath, file);
+            try {
+                require('fs').unlinkSync(fullPath);
+            } catch {}
+        }
+    }
+
+    resolveCommit(ref) {
+        const fs = require('fs');
+        const path = require('path');
+
+        const branchPath = path.join(
+            this.vcsDir,
+            'refs',
+            'heads',
+            ref 
+        );
+
+        if (fs.existsSync(branchPath)) {
+            return fs.readFileSync(branchPath, 'utf-8').trim();
+        }
+        return ref; 
+    }
+
+    checkout(ref) {
+        const Commit = require('../objects/Commit');
+        const fs = require('fs');
+        const path = require('path');
+
+        const targetCommitHash = this.resolveCommit(ref);
+        const commitObj = this.loadObject(targetCommitHash);
+        const commit = Commit.deserialize(commitObj.content);
+
+        const current = this.getHead();
+        if (current) {
+            const currentCommit = this.loadCommit(current);
+            this.clearTrackedFiles(currentCommit.tree);
+        }
+        this.restoreTree(commit.tree, this.rootPath);
+
+        const headPath = path.join(this.vcsDir, 'HEAD');
+        const branchPath = path.join(
+            this.vcsDir,
+            'refs',
+            'heads',
+            ref 
+        );
+
+        if (fs.existsSync(branchPath)) {
+            fs.writeFileSync(
+                headPath,
+                `ref: refs/heads/${ref}\n`
+            );
+        } else {
+            fs.writeFileSync(headPath, targetCommitHash + '\n');
+        }
+        console.log(color.green(`Switched to ${ref}`));
     }
 }
 
