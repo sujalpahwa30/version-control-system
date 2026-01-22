@@ -4,6 +4,7 @@ const GitObject = require('../objects/GitObject');
 const Index = require('../index/Index');
 const Blob = require('../objects/Blob');
 const Tree = require('../objects/Tree');
+const Commit = require('../objects/Commit');
 
 class Repository {
     constructor(rootPath) {
@@ -31,7 +32,7 @@ class Repository {
         fs.writeFileSync(this.headFile, 'ref: refs/heads/main\n'); 
         fs.writeFileSync(this.indexFile, JSON.stringify({}, null, 2));
 
-        console.log(`Initialized empty repository in ${this.gitDir}`);
+        console.log(`Initialized empty repository in ${this.vcsDir}`);
         return true; 
     }
 
@@ -165,6 +166,59 @@ class Repository {
             return this.storeObject(tree);
         };
         return writeTreeRecursive(root);
+    }
+
+    getHead() {
+        const headPath = path.join(this.vcsDir, 'HEAD');
+
+        if (!fs.existsSync(headPath)) return null;
+
+        const ref = fs.readFileSync(headPath, 'utf-8').trim();
+
+        if (ref.startsWith('ref: ')) {
+            const refPath = path.join(this.vcsDir, ref.slice(5));
+            if (fs.existsSync(refPath)) {
+                return fs.readFileSync(refPath, 'utf-8').trim();
+            }
+        }
+        return null; 
+    }
+
+    updateHead(commitHash) {
+        const headPath = path.join(this.vcsDir, 'HEAD');
+        const ref = fs.readFileSync(headPath, 'utf-8').trim();
+
+        if (ref.startsWith('ref: ')) {
+            const refPath = path.join(this.vcsDir, ref.slice(5));
+            fs.writeFileSync(refPath, commitHash + '\n');
+        }
+    }
+
+    commit(message, author = 'Orion <orion@vcs>') {
+        const indexEntries = this.index.getEntries();
+
+        if (Object.keys(indexEntries).length === 0) {
+            console.log('Nothing to commit');
+            return null; 
+        }
+
+        const treeHash = this.buildTreeFromIndex();
+        const parent = this.getHead();
+
+        const commit = new Commit({
+            tree: treeHash,
+            parents: parent ? [parent] : [],
+            author,
+            committer: author,
+            message
+        });
+
+        const commitHash = this.storeObject(commit);
+        this.updateHead(commitHash);
+        this.index.clear();
+
+        console.log(`Committed as ${commitHash}`);
+        return commitHash;
     }
 }
 
