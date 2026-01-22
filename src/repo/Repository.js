@@ -220,6 +220,35 @@ class Repository {
         console.log(`Committed as ${commitHash}`);
         return commitHash;
     }
+
+    loadCommit(hash) {
+        const obj = this.loadObject(hash);
+        return Commit.deserialize(obj.content);
+    }
+
+    log(limit = 10) {
+        let current = this.getHead();
+
+        if (!current) {
+            console.log('No commits yet');
+            return; 
+        }
+
+        let count = 0;
+
+        while (current && count < limit) {
+            const commit = this.loadCommit(current);
+
+            console.log(`commit ${current}`);
+            console.log(`Author: ${commit.author}`);
+            console.log('');
+            console.log(`    ${commit.message}`);
+            console.log('');
+
+            current = commit.parents[0];
+            count++; 
+        }
+    }
 }
 
 module.exports = Repository; 
