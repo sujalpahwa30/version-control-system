@@ -1,4 +1,5 @@
 const Repository = require('../repo/Repository');
+const color = require('../utils/color');
 
 module.exports = function addCommand(program) {
     program 
@@ -11,6 +12,6 @@ module.exports = function addCommand(program) {
                 repo.addPath(p);
             }
 
-            console.log('Files added to staging area');
+            console.log(color.green('Files added to staging area'));
         });
 };

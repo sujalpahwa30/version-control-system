@@ -33,7 +33,7 @@ class Repository {
         fs.writeFileSync(this.headFile, 'ref: refs/heads/main\n'); 
         fs.writeFileSync(this.indexFile, JSON.stringify({}, null, 2));
 
-        console.log(`Initialized empty repository in ${this.vcsDir}`);
+        console.log(color.green(`Initialized empty repository in ${this.vcsDir}`));
         return true; 
     }
 
@@ -79,6 +79,7 @@ class Repository {
     }
 
     addPath(targetPath) {
+        this.assertRepoExists();
         if (targetPath === '.') {
             this.addDirectory('');
             return; 
@@ -196,6 +197,7 @@ class Repository {
     }
 
     commit(message, author = 'Orion <orion@vcs>') {
+        this.assertRepoExists();
         const indexEntries = this.index.getEntries();
 
         if (Object.keys(indexEntries).length === 0) {
@@ -218,7 +220,7 @@ class Repository {
         this.updateHead(commitHash);
         this.index.clear();
 
-        console.log(`Committed as ${commitHash}`);
+        console.log(color.green(`Committed as ${commitHash}`));
         return commitHash;
     }
 
@@ -228,6 +230,7 @@ class Repository {
     }
 
     log(limit = 10) {
+        this.assertRepoExists();
         let current = this.getHead();
 
         if (!current) {
@@ -295,7 +298,7 @@ class Repository {
     }
 
     clearTrackedFiles(treeHash) {
-        const files = this.getFilesFromTree(treeHash);
+        const files = this.getFilesFromTreeList(treeHash);
 
         for (const file of files) {
             const fullPath = require('path').join(this.rootPath, file);
@@ -323,6 +326,7 @@ class Repository {
     }
 
     checkout(ref) {
+        this.assertRepoExists();
         const Commit = require('../objects/Commit');
         const fs = require('fs');
         const path = require('path');
@@ -354,7 +358,11 @@ class Repository {
         } else {
             fs.writeFileSync(headPath, targetCommitHash + '\n');
         }
-        console.log(color.green(`Switched to ${ref}`));
+        try {
+            console.log(color.green(`Switched to ${ref}`));
+        } catch  {
+            console.log(`Switched to ${ref}`);
+        }
     }
 
     getAllFiles() {
@@ -382,7 +390,7 @@ class Repository {
         return files;
     }
 
-    getFilesFromTree(treeHash, base = '') {
+    getFilesFromTreeMap(treeHash, base = '') {
         const Tree = require('../objects/Tree');
         const files = {};
         const treeObj = this.loadObject(treeHash);
@@ -398,7 +406,29 @@ class Repository {
             } else {
                 Object.assign(
                     files,
-                    this.getFilesFromTree(entry.hash, fullPath)
+                    this.getFilesFromTreeMap(entry.hash, fullPath)
+                );
+            }
+        }
+        return files; 
+    }
+    
+    getFilesFromTreeList(treeHash, base = '') {
+        const Tree = require('../objects/Tree');
+        const files = [];
+        const treeObj = this.loadObject(treeHash);
+        const tree = Tree.deserialize(treeObj.content);
+
+        for (const entry of tree.entries) {
+            const fullPath = base 
+                ? `${base}/${entry.name}`
+                : entry.name;
+            
+            if (entry.mode === '100644') {
+                files.push(fullPath);
+            } else {
+                files.push(
+                    ...this.getFilesFromTreeList(entry.hash, fullPath)
                 );
             }
         }
@@ -406,6 +436,7 @@ class Repository {
     }
 
     status() {
+        this.assertRepoExists();
         const color = require('../utils/color');
         const fs = require('fs');
         const path = require('path');
@@ -417,7 +448,7 @@ class Repository {
         let headFiles = {};
         if (headHash) {
             const commit = this.loadCommit(headHash);
-            headFiles = this.getFilesFromTree(commit.tree);
+            headFiles = this.getFilesFromTreeMap(commit.tree);
         }
 
         const workingFiles = {}; 
@@ -572,6 +603,22 @@ class Repository {
         }
 
         fs.unlinkSync(branchPath);
+    }
+
+    assertRepoExists() {
+        const fs = require('fs');
+        if (!fs.existsSync(this.vcsDir)) {
+            throw new Error('Not an Orion repository (run `orion init`)');
+        }
+
+        const headPath = require('path').join(
+            this.vcsDir,
+            'HEAD'
+        );
+
+        if (!fs.existsSync(headPath)) {
+            throw new Error('Repository corrupted or not initialized properly');
+        }
     }
 }
 
