@@ -7,6 +7,8 @@ const addCommand = require('../src/commands/add');
 const commitCommand = require('../src/commands/commit');
 const logCommand = require('../src/commands/log');
 const checkoutCommand = require('../src/commands/checkout');
+const statusCommand = require('../src/commands/status');
+const branchCommand = require('../src/commands/branch');
 
 const program = new Command(); 
 
@@ -20,5 +22,7 @@ addCommand(program);
 commitCommand(program); 
 logCommand(program); 
 checkoutCommand(program); 
+statusCommand(program); 
+branchCommand(program); 
 
 program.parse(process.argv); 

@@ -356,6 +356,223 @@ class Repository {
         }
         console.log(color.green(`Switched to ${ref}`));
     }
+
+    getAllFiles() {
+        const fs = require('fs');
+        const path = require('path');
+
+        const files = [];
+
+        const walk = (dir) => {
+            for (const entry of fs.readdirSync(dir)) {
+                if (entry === '.orion') continue;
+
+                const full = path.join(dir, entry);
+                const stat = fs.statSync(full);
+
+                if (stat.isDirectory()) {
+                    walk(full);
+                } else {
+                    files.push(path.relative(this.rootPath, full));
+                }
+            }
+        };
+
+        walk(this.rootPath);
+        return files;
+    }
+
+    getFilesFromTree(treeHash, base = '') {
+        const Tree = require('../objects/Tree');
+        const files = {};
+        const treeObj = this.loadObject(treeHash);
+        const tree = Tree.deserialize(treeObj.content);
+
+        for (const entry of tree.entries) {
+            const fullPath = base 
+                ? `${base}/${entry.name}`
+                : entry.name;
+            
+            if (entry.mode === '100644') {
+                files[fullPath] = entry.hash;
+            } else {
+                Object.assign(
+                    files,
+                    this.getFilesFromTree(entry.hash, fullPath)
+                );
+            }
+        }
+        return files; 
+    }
+
+    status() {
+        const color = require('../utils/color');
+        const fs = require('fs');
+        const path = require('path');
+        const Blob = require('../objects/Blob');
+
+        const headHash = this.getHead();
+        const indexEntries = this.index.getEntries();
+
+        let headFiles = {};
+        if (headHash) {
+            const commit = this.loadCommit(headHash);
+            headFiles = this.getFilesFromTree(commit.tree);
+        }
+
+        const workingFiles = {}; 
+        for (const file of this.getAllFiles()) {
+            const content = fs.readFileSync(
+                path.join(this.rootPath, file) 
+            );
+            const blob = new Blob(content);
+            workingFiles[file] = blob.hash();
+        }
+
+        const staged = [];
+        const modified = [];
+        const untracked = [];
+        const deleted = [];
+
+        const allPaths = new Set([
+            ...Object.keys(headFiles),
+            ...Object.keys(indexEntries),
+            ...Object.keys(workingFiles)
+        ]);
+
+        for (const file of allPaths) {
+            const head = headFiles[file];
+            const index = indexEntries[file];
+            const work = workingFiles[file];
+
+            if (!head && index) {
+                staged.push(`new file:   ${file}`);
+            } else if (head && index && head !== index) {
+                staged.push(`modified:  ${file}`);
+            } else if (index && work && index !== work) {
+                modified.push(`modified:  ${file}`);
+            } else if (!head && !index && work) {
+                untracked.push(file);
+            } else if (index && !work) {
+                deleted.push(`deleted:  ${file}`);
+            }
+        }
+
+        console.log(color.bold(`On branch ${this.getBranchName()}`));
+
+        if (staged.length) {
+            console.log(color.green('\nChanges to be committed:'));
+            staged.forEach(f => console.log(`  ${f}`));
+        }
+
+        if (modified.length) {
+            console.log(color.yellow('\nChanges not staged for commit:'));
+            modified.forEach(f => console.log(`  ${f}`)); 
+        }
+
+        if (untracked.length) {
+            console.log(color.red('\nUntracked files:'));
+            untracked.forEach(f => console.log(`   ${f}`));
+        }
+
+        if (deleted.length) {
+            console.log(color.red('\nDeleted files:'));
+            deleted.forEach(f => console.log(`  ${f}`));
+        }
+
+        if (
+            !staged.length &&
+            !modified.length && 
+            !untracked.length &&
+            !deleted.length
+        ) {
+            console.log(color.cyan('\nWorking tree clean')); 
+        }
+    }
+
+    getBranchName() {
+        const fs = require('fs');
+        const path = require('path');
+
+        const head = fs.readFileSync(
+            path.join(this.vcsDir, 'HEAD'),
+            'utf-8'
+        ).trim();
+
+        if (head.startsWith('ref: refs/heads/')) {
+            return head.slice(16);
+        }
+
+        return 'DETACHED';
+    }
+
+    listBranches() {
+        const fs = require('fs');
+        const path = require('path');
+        const color = require('../utils/color');
+
+        const current = this.getBranchName();
+        const headsPath = path.join(
+            this.vcsDir,
+            'refs',
+            'heads' 
+        );
+
+        for (const file of fs.readdirSync(headsPath)) {
+            const mark = file === current ? '*' : ' ';
+            const name = file === current 
+                ? color.green(file) 
+                : file;
+
+            console.log(`${mark} ${name}`);
+        }
+    }
+
+    createBranch(name) {
+        const fs = require('fs');
+        const path = require('path');
+
+        const branchPath = path.join(
+            this.vcsDir,
+            'refs',
+            'heads',
+            name
+        );
+
+        if (fs.existsSync(branchPath)) {
+            throw new Error('Branch already exists');
+        }
+
+        const head = this.getHead();
+        if (!head) {
+            throw new Error('No commits yet');
+        }
+
+        fs.writeFileSync(branchPath, head + '\n');
+    }
+
+    deleteBranch(name) {
+        const fs = require('fs');
+        const path = require('path');
+
+        const current = this.getBranchName();
+        if (name === current) {
+            throw new Error('Cannot delete current branch');
+        }
+
+        const branchPath = path.join(
+            this.vcsDir,
+            'refs',
+            'heads',
+            name
+        );
+
+        if (!fs.existsSync(branchPath)) {
+            throw new Error('Branch not found');
+        }
+
+        fs.unlinkSync(branchPath);
+    }
 }
 
 module.exports = Repository; 
