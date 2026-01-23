@@ -6,12 +6,16 @@ module.exports = function addCommand(program) {
         .command('add <paths...>')
         .description('Add files or directories to the staging area')
         .action((paths) => {
-            const repo = new Repository(process.cwd());
+            try {
+                const repo = new Repository(process.cwd());
 
-            for (const p of paths) {
-                repo.addPath(p);
+                for (const p of paths) {
+                    repo.addPath(p);
+                }
+
+                console.log(color.green('Files added to staging area'));
+            } catch (e) {
+                console.log(color.red(e.message));
             }
-
-            console.log(color.green('Files added to staging area'));
         });
 };

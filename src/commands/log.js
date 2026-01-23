@@ -1,4 +1,5 @@
 const Repository = require('../repo/Repository');
+const color = require('../utils/color');
 
 module.exports = function logCommand(program) {
     program 
@@ -6,7 +7,11 @@ module.exports = function logCommand(program) {
         .option('-n, --number <count>', 'Number of commits', parseInt, 10)
         .description('Show commit history')
         .action((opts) => {
-            const repo = new Repository(process.cwd());
-            repo.log(opts.number);
+            try {
+                const repo = new Repository(process.cwd());
+                repo.log(opts.number);
+            } catch (e) {
+                console.log(color.red(e.message));
+            }
         });
 };
