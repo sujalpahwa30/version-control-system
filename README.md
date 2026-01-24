@@ -24,6 +24,8 @@ Orion is a Git-inspired snapshot-based version control system built in Node.js. 
 - [Architecture](#architecture)
 - [Development](#development)
 - [Testing](#testing)
+- [Contributing](#contributing)
+- [What You'll Learn](#what-youll-learn)
 - [License](#license)
 
 ## 🚀 Installation
@@ -253,15 +255,6 @@ node tests/blob-storage.test.js
 
 **Note**: A formal test runner is not yet configured. The tests above can be run directly with Node.js.
 
-## 📚 Learning Resources
-
-This project is an excellent learning resource for understanding:
-- How version control systems work internally
-- Content-addressable storage systems
-- Directed Acyclic Graphs (DAGs) for commit history
-- File system operations in Node.js
-- Building command-line tools with Node.js
-
 ## 🤝 Contributing
 
 Contributions are welcome! Here's how you can help:
@@ -281,6 +274,15 @@ Contributions are welcome! Here's how you can help:
 - Improve error handling and user messages
 - Enhance test coverage
 - Add performance optimizations
+
+## 📚 What You'll Learn
+
+Building and exploring this project helps you understand:
+- **Version Control Internals**: How Git-like systems work under the hood
+- **Content-Addressable Storage**: Using SHA-1 hashing for efficient data management
+- **DAG Structures**: Directed Acyclic Graphs for commit history
+- **File System Operations**: Advanced Node.js filesystem APIs
+- **CLI Development**: Building professional command-line tools
 
 ## 📄 License
 
