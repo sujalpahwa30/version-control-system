@@ -1,8 +1,8 @@
 {
-  "name": "version-control-system",
+  "name": "orion-vcs",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "A Git-inspired snapshot version control system built in Node.js",
+  "main": "src/index.js",
   "bin": {
     "orion": "./bin/orion.js"
   },
@@ -10,9 +10,17 @@
     "start": "node ./bin/orion.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "git",
+    "version-control",
+    "cli",
+    "developer-tools",
+    "nodejs",
+    "vcs",
+    "orion" 
+  ],
+  "author": "Sujal Pahwa",
+  "license": "MIT",
   "type": "commonjs",
   "dependencies": {
     "chalk": "^5.6.2",
