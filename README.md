@@ -235,9 +235,6 @@ cd version-control-system
 # Install dependencies
 npm install
 
-# Run tests
-npm test
-
 # Test locally
 node bin/orion.js init
 ```
@@ -247,15 +244,14 @@ node bin/orion.js init
 The project includes basic tests for core functionality:
 
 ```bash
-# Run tests
-npm test
-
 # Test GitObject functionality
 node tests/gitobject.test.js
 
 # Test blob storage
 node tests/blob-storage.test.js
 ```
+
+**Note**: A formal test runner is not yet configured. The tests above can be run directly with Node.js.
 
 ## 📚 Learning Resources
 
@@ -306,7 +302,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - [Repository](https://github.com/sujalpahwa30/version-control-system)
 - [Issue Tracker](https://github.com/sujalpahwa30/version-control-system/issues)
-- [NPM Package](https://www.npmjs.com/package/orion-vcs)
 
 ---
 
